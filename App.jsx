@@ -1,5 +1,4 @@
-import React from "react";
-import {useState, useEffect} from "react";
+import React, {useState, useEffect} from "react";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import Split from "react-split";
@@ -12,10 +11,10 @@ import {
 } from 'firebase/firestore';
 import {db, notesCollection} from "./firebase";
 
-
 export default function App() {
     const [notes, setNotes] = useState([]);
     const [currentNoteId, setCurrentNoteId] = useState('');
+    const [tempNoteText, setTempNoteText] = useState('');
 
     const currentNote =
         notes.find(note => note.id === currentNoteId)
@@ -36,10 +35,23 @@ export default function App() {
     }, []);
 
     useEffect(() => {
+        setTempNoteText(currentNote?.body);
+    }, [currentNote]);
+
+    useEffect(() => {
         if (!currentNoteId) {
             setCurrentNoteId(notes[0]?.id);
         }
     }, [notes]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (tempNoteText !== currentNote.body) {
+                updateNote(tempNoteText);
+            }
+        }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [tempNoteText]);
 
     async function createNewNote() {
         const newNote = {
@@ -80,8 +92,8 @@ export default function App() {
                             deleteNote={deleteNote}
                         />
                         <Editor
-                            currentNote={currentNote}
-                            updateNote={updateNote}
+                            currentNote={tempNoteText}
+                            updateNote={setTempNoteText}
                         />
                     </Split>
                     :
