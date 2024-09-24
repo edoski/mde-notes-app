@@ -2,31 +2,38 @@ import React from "react"
 import Sidebar from "./components/Sidebar"
 import Editor from "./components/Editor"
 import Split from "react-split"
-import { nanoid } from "nanoid"
+import {onSnapshot, addDoc, doc, deleteDoc} from 'firebase/firestore'
+import {db, notesCollection} from "./firebase";
+
 
 export default function App() {
-    const [notes, setNotes] = React.useState(
-        () => JSON.parse(localStorage.getItem("notes")) || []
-    )
+    const [notes, setNotes] = React.useState([]);
     const [currentNoteId, setCurrentNoteId] = React.useState(
         (notes[0]?.id) || ""
-    )
-    
-    const currentNote = 
-        notes.find(note => note.id === currentNoteId) 
+    );
+
+    const currentNote =
+        notes.find(note => note.id === currentNoteId)
         || notes[0]
 
     React.useEffect(() => {
-        localStorage.setItem("notes", JSON.stringify(notes))
-    }, [notes])
+        return onSnapshot(notesCollection, snapshot => {
+            const notesArr = snapshot.docs.map(doc => (
+                {
+                    ...doc.data(),
+                    id: doc.id
+                }
+            ));
+            setNotes(notesArr)
+        })
+    }, [])
 
-    function createNewNote() {
+    async function createNewNote() {
         const newNote = {
-            id: nanoid(),
             body: "# Type your markdown note's title here"
         }
-        setNotes(prevNotes => [newNote, ...prevNotes])
-        setCurrentNoteId(newNote.id)
+        const newNoteRef = await addDoc(notesCollection, newNote)
+        setCurrentNoteId(newNoteRef.id)
     }
 
     function updateNote(text) {
@@ -35,8 +42,7 @@ export default function App() {
             for (let i = 0; i < oldNotes.length; i++) {
                 const oldNote = oldNotes[i]
                 if (oldNote.id === currentNoteId) {
-                    // Put the most recently-modified note at the top
-                    newArray.unshift({ ...oldNote, body: text })
+                    newArray.unshift({...oldNote, body: text})
                 } else {
                     newArray.push(oldNote)
                 }
@@ -45,9 +51,9 @@ export default function App() {
         })
     }
 
-    function deleteNote(event, noteId) {
-        event.stopPropagation()
-        setNotes(oldNotes => oldNotes.filter(note => note.id !== noteId))
+    async function deleteNote(noteId) {
+        const docRef = doc(db, 'notes', noteId);
+        await deleteDoc(docRef);
     }
 
     return (
@@ -84,7 +90,7 @@ export default function App() {
                             onClick={createNewNote}
                         >
                             Create one now
-                </button>
+                        </button>
                     </div>
 
             }
