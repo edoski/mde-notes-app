@@ -1,54 +1,60 @@
-import React from "react"
-import Sidebar from "./components/Sidebar"
-import Editor from "./components/Editor"
-import Split from "react-split"
-import {onSnapshot, addDoc, doc, deleteDoc} from 'firebase/firestore'
+import React from "react";
+import {useState, useEffect} from "react";
+import Sidebar from "./components/Sidebar";
+import Editor from "./components/Editor";
+import Split from "react-split";
+import {
+    onSnapshot,
+    addDoc,
+    doc,
+    deleteDoc,
+    setDoc
+} from 'firebase/firestore';
 import {db, notesCollection} from "./firebase";
 
 
 export default function App() {
-    const [notes, setNotes] = React.useState([]);
-    const [currentNoteId, setCurrentNoteId] = React.useState(
-        (notes[0]?.id) || ""
-    );
+    const [notes, setNotes] = useState([]);
+    const [currentNoteId, setCurrentNoteId] = useState('');
 
     const currentNote =
         notes.find(note => note.id === currentNoteId)
-        || notes[0]
+        || notes[0];
 
-    React.useEffect(() => {
+    const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
+
+    useEffect(() => {
         return onSnapshot(notesCollection, snapshot => {
             const notesArr = snapshot.docs.map(doc => (
                 {
                     ...doc.data(),
-                    id: doc.id
+                    id: doc.id,
                 }
             ));
             setNotes(notesArr)
         })
-    }, [])
+    }, []);
+
+    useEffect(() => {
+        if (!currentNoteId) {
+            setCurrentNoteId(notes[0]?.id);
+        }
+    }, [notes]);
 
     async function createNewNote() {
         const newNote = {
-            body: "# Type your markdown note's title here"
+            body: "# Type your markdown note's title here",
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+
         }
-        const newNoteRef = await addDoc(notesCollection, newNote)
-        setCurrentNoteId(newNoteRef.id)
+        const newNoteRef = await addDoc(notesCollection, newNote);
+        setCurrentNoteId(newNoteRef.id);
     }
 
-    function updateNote(text) {
-        setNotes(oldNotes => {
-            const newArray = []
-            for (let i = 0; i < oldNotes.length; i++) {
-                const oldNote = oldNotes[i]
-                if (oldNote.id === currentNoteId) {
-                    newArray.unshift({...oldNote, body: text})
-                } else {
-                    newArray.push(oldNote)
-                }
-            }
-            return newArray
-        })
+    async function updateNote(text) {
+        const docRef = doc(db, 'notes', currentNoteId);
+        await setDoc(docRef, {body: text, updatedAt: Date.now()}, {merge: true});
     }
 
     async function deleteNote(noteId) {
@@ -67,20 +73,16 @@ export default function App() {
                         className="split"
                     >
                         <Sidebar
-                            notes={notes}
+                            notes={sortedNotes}
                             currentNote={currentNote}
                             setCurrentNoteId={setCurrentNoteId}
                             newNote={createNewNote}
                             deleteNote={deleteNote}
                         />
-                        {
-                            currentNoteId &&
-                            notes.length > 0 &&
-                            <Editor
-                                currentNote={currentNote}
-                                updateNote={updateNote}
-                            />
-                        }
+                        <Editor
+                            currentNote={currentNote}
+                            updateNote={updateNote}
+                        />
                     </Split>
                     :
                     <div className="no-notes">
