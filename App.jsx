@@ -92,8 +92,8 @@ export default function App() {
                             deleteNote={deleteNote}
                         />
                         <Editor
-                            currentNote={tempNoteText}
-                            updateNote={setTempNoteText}
+                            tempNoteText={tempNoteText}
+                            setTempNoteText={setTempNoteText}
                         />
                     </Split>
                     :
